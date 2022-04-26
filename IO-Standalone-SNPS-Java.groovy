@@ -40,6 +40,13 @@ pipeline {
                         issueQuery: 'resolution=Unresolved', 
                         projectKey: 'VUL', 
                         projectName: 'VUL'),
+                    codeDx(
+                        configName: 'SIG-CodeDx', 
+                        projectId: '3'), 
+                    blackduck(
+                        configName: 'BIZDevBD',
+                        projectName: 'vulnado',
+                        projectVersion: '1.0'),
                     buildBreaker(configName: 'BB-Custom')]) {
                         sh 'io --stage io Persona.Type=devsecops Project.Release.Type=minor'
                     }
@@ -131,9 +138,8 @@ pipeline {
         stage('IO - Workflow') {
             steps {
                 echo 'Execute Workflow Stage'
-                synopsysIO(connectors: [
-                    codeDx(configName: 'SIG-CodeDx', projectId: '3'), 
-                    jira(assignee: 'rahulgu@synopsys.com', configName: 'SIG-JIRA-Demo', issueQuery: 'resolution=Unresolved AND labels in (Security, Defect)', projectKey: 'VUL', projectName: 'VUL'), 
+                synopsysIO(connectors: [ 
+                    //jira(assignee: 'rahulgu@synopsys.com', configName: 'SIG-JIRA-Demo', issueQuery: 'resolution=Unresolved AND labels in (Security, Defect)', projectKey: 'VUL', projectName: 'VUL'), 
                     msteams(configName: 'io-bot'), 
                     buildBreaker(configName: 'BB-Custom')
                 ]) {
