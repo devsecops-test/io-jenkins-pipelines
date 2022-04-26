@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('Checkout Source Code') {
             steps {
-                git branch: 'devsecops', url: 'https://github.com/devsecops-test/vulnado'
+                git branch: 'master', url: 'https://github.com/devsecops-test/vulnado'
             }
         }
 
