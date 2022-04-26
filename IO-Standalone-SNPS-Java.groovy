@@ -41,7 +41,7 @@ pipeline {
                         projectKey: 'VUL', 
                         projectName: 'VUL'),
                     buildBreaker(configName: 'BB-Custom')]) {
-                        sh 'io --stage io Persona.Type=developer Project.Release.Type=minor'
+                        sh 'io --stage io Persona.Type=devsecops Project.Release.Type=minor'
                     }
 
                 script {
