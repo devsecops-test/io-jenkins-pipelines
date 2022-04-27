@@ -28,7 +28,7 @@ pipeline {
                     io(
                         configName: 'io-azure',
                         projectName: 'devsecops-vulnado',
-                        workflowVersion: '2021.12.2'),
+                        workflowVersion: '2022.4.0'),
                     github(
                         branch: 'master',
                         configName: 'github-devsecops',
@@ -143,7 +143,7 @@ pipeline {
                     msteams(configName: 'io-bot'), 
                     buildBreaker(configName: 'BB-Custom')
                 ]) {
-                    sh 'io --stage workflow --state io_state.json --codedx-avm-stage true --io.manifest.path /var/lib/jenkins/workspace/IO-Standalone-SNPS-Java/.io/WfClientWrapperAdapter/synopsys-io.json  --workflowengine.url http://23.99.131.170:80/api/workflowengine'
+                    sh 'io --stage workflow --state io_state.json'
                 }
                 
                 script {
