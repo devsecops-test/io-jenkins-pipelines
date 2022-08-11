@@ -278,8 +278,7 @@ pipeline {
         // Run IO's Workflow Engine
         stage('Workflow') {
             steps {
-                synopsysIO(connectors: [
-                    msteams(configName: msTeamsConfigName)]) {
+                synopsysIO(connectors: []) {
                             sh 'io --stage workflow --state io_state.json'
                 }
             }
