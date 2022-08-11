@@ -200,18 +200,12 @@ pipeline {
             }
         }
 
-        stage('Container Scan - BlackDuck') {
+        stage('Container Scan') {
             when {
                 expression { isImageScanEnabled }
             }
             steps {
-              echo 'Running Container Scan using BlackDuck'
-              synopsysIO(connectors: [
-                  blackduck(configName: 'BIZDevBD',
-                  projectName: 'vulnado',
-                  projectVersion: '1.0')]) {
-                  sh 'io --stage execution --state io_state.json'
-              }
+              echo 'Running Container Scan'
             }
         }
 
