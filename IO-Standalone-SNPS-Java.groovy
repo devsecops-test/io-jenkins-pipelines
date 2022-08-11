@@ -1,8 +1,66 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+// IO Environment
+def ioPOCId = 'io-azure'
+def ioProjectName = 'devsecops-vulnado'
+def ioWorkflowEngineVersion = '2022.7.0'
+def ioServerURL = "http://23.99.131.170"
+def ioRunAPI = "/api/ioiq/api/orchestration/runs/"
+
+// SCM
+def scmBranch = 'devsecops'
+def scmRepoName = 'vulnado'
+// GitHub
+def gitHubPOCId = 'github-poc'
+def gitHubOwner = 'devsecops-test'
+
+// AST - Sigma
+def sigmaConfigName = 'sigma'
+
+// AST - Coverity
+def coverityConfigName = ''
+def coverityStream = ''
+def coverityTrialCredential = ''
+
+// AST - Polaris
+def polarisPipelineConfig = 'PolarisPipelineConfig'
+def polarisConfigName = 'csprod-polaris'
+def polarisProjectName = 'sig-devsecops/vulnado'
+
+// AST - Black Duck
+def blackDuckPOCId = 'BIZDevBD'
+def blackDuckProjectName = 'vulnado'
+def blackDuckProjectVersion = '1.0'
+
+// BTS Configuration
+def jiraAssignee = 'rahulgu@synopsys.com'
+def jiraConfigName = 'SIG-JIRA-Demo'
+def jiraIssueQuery = 'resolution=Unresolved'
+def jiraProjectKey = 'VUL'
+def jiraProjectName = 'VUL'
+
+// Code Dx Configuration
+def codeDxConfigName = 'SIG-CodeDx'
+def codeDxProjectId = '3'
+
+// Notification Configuration
+def msTeamsConfigName = 'io-bot'
+
+// IO Prescription Placeholders
+def runId
 def isSASTEnabled
 def isSASTPlusMEnabled
 def isSCAEnabled
 def isDASTEnabled
 def isDASTPlusMEnabled
+def isImageScanEnabled
+def isNetworkScanEnabled
+def isCloudReviewEnabled
+def isThreatModelEnabled
+def isInfraReviewEnabled
+def isASTEnabled
+def breakBuild = false
 
 pipeline {
     agent any
@@ -10,15 +68,21 @@ pipeline {
         maven 'Maven3'
     }
     stages {
-        stage('Checkout Source Code') {
+        stage('Checkout') {
+            environment {
+                GITHUB_ACCESS_TOKEN = credentials("${gitHubPOCId}")
+            }
             steps {
-                git branch: 'master', url: 'https://github.com/devsecops-test/vulnado'
+                script {
+                    def pocURL = "https://${GITHUB_ACCESS_TOKEN}@github.com/${gitHubOwner}/${scmRepoName}"
+                    git branch: scmBranch, url: pocURL
+                }
             }
         }
 
         stage('Build Source Code') {
             steps {
-                sh '''mvn clean compile'''
+                sh '''mvn clean compile -DskipTests -Dmaven.test.skip=true'''
             }
         }
 
@@ -26,41 +90,63 @@ pipeline {
             steps {
                 synopsysIO(connectors: [
                     io(
-                        configName: 'io-azure',
-                        projectName: 'devsecops-vulnado',
-                        workflowVersion: '2022.4.0'),
+                        configName: ioPOCId,
+                        projectName: ioProjectName,
+                        workflowVersion: ioWorkflowEngineVersion),
                     github(
-                        branch: 'master',
-                        configName: 'github-devsecops',
-                        owner: 'devsecops-test',
-                        repositoryName: 'vulnado'),
+                        branch: scmBranch,
+                        configName: gitHubPOCId,
+                        owner: gitHubOwner,
+                        repositoryName: scmRepoName),
                     jira(
-                        assignee: 'rahulgu@synopsys.com', 
-                        configName: 'SIG-JIRA-Demo', 
-                        issueQuery: 'resolution=Unresolved', 
-                        projectKey: 'VUL', 
-                        projectName: 'VUL'),
+                        assignee: jiraAssignee,
+                        configName: jiraConfigName,
+                        issueQuery: jiraIssueQuery,
+                        projectKey: jiraProjectKey,
+                        projectName: jiraProjectName),
                     codeDx(
-                        configName: 'SIG-CodeDx', 
-                        projectId: '3'), 
-                    blackduck(
-                        configName: 'BIZDevBD',
-                        projectName: 'vulnado',
-                        projectVersion: '1.0'),
-                    buildBreaker(configName: 'BB-Custom')]) {
-                        sh 'io --stage io Persona.Type=devsecops Project.Release.Type=minor'
+                        configName: codeDxConfigName,
+                        projectId: codeDxProjectId)]) {
+                            sh 'io --stage io'
                     }
 
                 script {
-                    def prescriptionJSON = readJSON file: 'io_state.json'
+                    // IO-IQ will write the prescription to io_state JSON
+                    if (fileExists('io_state.json')) {
+                        def prescriptionJSON = readJSON file: 'io_state.json'
 
-                    isSASTEnabled = prescriptionJSON.data.prescription.security.activities.sast.enabled
-                    isSASTPlusMEnabled = prescriptionJSON.data.prescription.security.activities.sastPlusM.enabled
-                    isSCAEnabled = prescriptionJSON.data.prescription.security.activities.sca.enabled
-                    isDASTEnabled = prescriptionJSON.data.prescription.security.activities.dast.enabled
-                    isDASTPlusMEnabled = prescriptionJSON.data.prescription.security.activities.dastPlusM.enabled
-                    isImageScanEnabled = prescriptionJSON.data.prescription.security.activities.imageScan.enabled
+                        // Pretty-print Prescription JSON
+                        // def prescriptionJSONFormat = JsonOutput.toJson(prescriptionJSON)
+                        // prettyJSON = JsonOutput.prettyPrint(prescriptionJSONFormat)
+                        // echo("${prettyJSON}")
 
+                        // Use the run Id from IO IQ to get detailed message/explanation on prescription
+                        runId = prescriptionJSON.data.io.run.id
+                        def apiURL = ioServerURL + ioRunAPI + runId
+                        def res = sh(script: "curl --location --request GET  ${apiURL} --header 'Authorization: Bearer ${IO_ACCESS_TOKEN}'", returnStdout: true)
+
+                        def jsonSlurper = new JsonSlurper()
+                        def ioRunJSON = jsonSlurper.parseText(res)
+                        def ioRunJSONFormat = JsonOutput.toJson(ioRunJSON)
+                        def ioRunJSONPretty = JsonOutput.prettyPrint(ioRunJSONFormat)
+                        print("==================== IO-IQ Explanation ======================")
+                        echo("${ioRunJSONPretty}")
+                        print("==================== IO-IQ Explanation ======================")
+
+                        // Update security flags based on prescription
+                        isSASTEnabled = prescriptionJSON.data.prescription.security.activities.sast.enabled
+                        isSASTPlusMEnabled = prescriptionJSON.data.prescription.security.activities.sastPlusM.enabled
+                        isSCAEnabled = prescriptionJSON.data.prescription.security.activities.sca.enabled
+                        isDASTEnabled = prescriptionJSON.data.prescription.security.activities.dast.enabled
+                        isDASTPlusMEnabled = prescriptionJSON.data.prescription.security.activities.dastPlusM.enabled
+                        isImageScanEnabled = prescriptionJSON.data.prescription.security.activities.imageScan.enabled
+                        isNetworkScanEnabled = prescriptionJSON.data.prescription.security.activities.NETWORK.enabled
+                        isCloudReviewEnabled = prescriptionJSON.data.prescription.security.activities.CLOUD.enabled
+                        isThreatModelEnabled = prescriptionJSON.data.prescription.security.activities.THREATMODEL.enabled
+                        isInfraReviewEnabled = prescriptionJSON.data.prescription.security.activities.INFRA.enabled
+                    } else {
+                        error('IO prescription JSON not found.')
+                    }
                 }
             }
         }
@@ -75,7 +161,7 @@ pipeline {
             steps {
                 echo 'Running SAST using Sigma - Rapid Scan'
                 synopsysIO(connectors: [
-                    rapidScan(configName: 'Sigma')]) {
+                    rapidScan(configName: sigmaConfigName)]) {
                     sh 'io --stage execution --state io_state.json'
                 }
             }
@@ -88,23 +174,11 @@ pipeline {
             steps {
                 echo 'Running SAST using Polaris'
                 synopsysIO(connectors: [
-                    [$class: 'PolarisPipelineConfig',
-                    configName: 'csprod-polaris',
-                    projectName: 'sig-devsecops/vulnado']]) {
+                    [$class: polarisPipelineConfig,
+                    configName: polarisConfigName,
+                    projectName: polarisProjectName]]) {
                     sh 'io --stage execution --state io_state.json'
                 }
-            }
-        }
-
-        stage('SAST Plus Manual') {
-            when {
-                expression { isSASTPlusMEnabled }
-            }
-            steps {
-                script {
-                    input message: 'Manual source code review (SAST - Manual) triggered by IO. Proceed?'
-                }
-                echo "Out-of-Band Activity - SAST Plus Manual triggered & approved"
             }
         }
 
@@ -123,77 +197,139 @@ pipeline {
             }
         }
 
-        stage('DAST Plus Manual') {
+        stage('Container Scan - BlackDuck') {
+            when {
+                expression { isImageScanEnabled }
+            }
+            steps {
+              echo 'Running Container Scan using BlackDuck'
+              synopsysIO(connectors: [
+                  blackduck(configName: 'BIZDevBD',
+                  projectName: 'vulnado',
+                  projectVersion: '1.0')]) {
+                  sh 'io --stage execution --state io_state.json'
+              }
+            }
+        }
+
+        stage('DAST') {
+            when {
+                expression { isDASTEnabled }
+            }
+            steps {
+              echo 'DAST'
+            }
+        }
+
+        stage('Network Scan') {
+            when {
+                expression { isNetworkScanEnabled }
+            }
+            steps {
+              echo 'Network Scan'
+            }
+        }
+
+        stage('Cloud Configuration Review') {
+            when {
+                expression { isCloudReviewEnabled }
+            }
+            steps {
+              echo 'Cloud Configuration Review'
+            }
+        }
+
+        stage('Infrastructure Review') {
+            when {
+                expression { isInfraReviewEnabled }
+            }
+            steps {
+              echo 'Infrastructure Review'
+            }
+        }
+
+        // Manual - Secure Source Code Review
+        stage('Penetration Testing') {
             when {
                 expression { isDASTPlusMEnabled }
             }
             steps {
-                script {
-                    input message: 'Manual threat-modeling (DAST - Manual) triggered by IO. Proceed?'
-                }
-                echo "Out-of-Band Activity - DAST Plus Manual triggered & approved"
+                input message: 'Perform manual penetration testing.'
             }
         }
 
-        stage('IO - Workflow') {
+        // Manual - Penetration Testing
+        stage('Secure Source Code Review') {
+            when {
+                expression { isSASTPlusMEnabled }
+            }
             steps {
-                echo 'Execute Workflow Stage'
-                synopsysIO(connectors: [ 
-                    //jira(assignee: 'rahulgu@synopsys.com', configName: 'SIG-JIRA-Demo', issueQuery: 'resolution=Unresolved AND labels in (Security, Defect)', projectKey: 'VUL', projectName: 'VUL'), 
-                    msteams(configName: 'io-bot'), 
-                    buildBreaker(configName: 'BB-Custom')
-                ]) {
-                    sh 'io --stage workflow --state io_state.json'
-                }
-                
-                script {
-                    def workflowJSON = readJSON file: 'wf-output.json'
-                    print("========================== IO WorkflowEngine Summary ============================")
-                    print("Breaker Status: $workflowJSON.breaker.status")
+                input message: 'Perform manual secure source code review.'
+            }
+        }
 
-                    codedx_value = workflowJSON.summary.risk_score
-                    for(arr in codedx_value){
-                        if(arr != null)
-                        {   
-                            print("Code Dx Score: $arr")
-                        }
-                    }
+        // Manual Threat Model Stage
+        stage('Threat-Model') {
+            when {
+                expression { isThreatModelEnabled }
+            }
+            steps {
+                input message: 'Perform threat-modeling.'
+            }
+        }
+
+        // Run IO's Workflow Engine
+        stage('Workflow') {
+            steps {
+                synopsysIO(connectors: [
+                    msteams(configName: msTeamsConfigName)]) {
+                            sh 'io --stage workflow --state io_state.json'
                 }
             }
         }
-        
-        stage('Security Sign-Off') {
+
+        // Security Sign-Off Stage
+        stage('Security') {
             steps {
                 script {
-                    
-                    //parse '.io/jenkins-plugin/io-manifest.yml'
-                    
-                    def workflowJSON = readJSON file: 'wf-output.json'
-                 
-                    codedx_value = workflowJSON.summary.risk_score
-                    for(arr in codedx_value){
-                        if(arr != null)
-                        {   
-                            print("Code Dx Score: $arr")
-                            if(arr < 80)
-                            {
-                                input message: 'Code Dx Score did not meet the defined threshold. Do you wish to proceed?'
-                            }
+                    if (fileExists('wf-output.json')) {
+                        def wfJSON = readJSON file: 'wf-output.json'
+
+                        // If the Workflow Output JSON has a lot of key-values; Jenkins throws a StackOverflow Exception
+                        //  when trying to pretty-print the JSON
+                        // def wfJSONFormat = JsonOutput.toJson(wfJSON)
+                        // def wfJSONPretty = JsonOutput.prettyPrint(wfJSONFormat)
+                        // print("======================== IO Workflow Engine Summary ==========================")
+                        // print(wfJSONPretty)
+                        // print("======================== IO Workflow Engine Summary ==========================")
+
+                        breakBuild = wfJSON.breaker.status
+                        print("========================== Build Breaker Status ============================")
+                        print("Breaker Status: $breakBuild")
+                        print("========================== Build Breaker Status ============================")
+
+                        if (breakBuild) {
+                            input message: 'Build-breaker criteria met.'
                         }
+                    } else {
+                        print('No output from the Workflow Engine. No sign-off required.')
                     }
                 }
-                echo "Security Sign-Off triggered & approved"
             }
         }
     }
 
     post {
         always {
-            // Archive Results & Logs
-            archiveArtifacts artifacts: '**/*-results*.json', allowEmptyArchive: 'true'
+            // Archive Results/Logs
+            // archiveArtifacts artifacts: '**/*-results*.json', allowEmptyArchive: 'true'
 
-            // Remove the state json file as it has sensitive information
-            sh 'rm io_state.json'
+            script {
+                // Remove the state json file as it has sensitive information
+                if (fileExists('io_state.json')) {
+                    sh 'rm io_state.json'
+                }
+            }
         }
     }
 }
