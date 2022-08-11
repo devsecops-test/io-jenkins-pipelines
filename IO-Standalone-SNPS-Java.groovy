@@ -87,6 +87,9 @@ pipeline {
         }
 
         stage('IO - Prescription') {
+            environment {
+                IO_ACCESS_TOKEN = credentials("${ioPOCId}")
+            }
             steps {
                 synopsysIO(connectors: [
                     io(
