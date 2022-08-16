@@ -170,20 +170,20 @@ pipeline {
             }
         }
 
-        stage('SAST - Polaris') {
-            when {
-                expression { isSASTEnabled }
-            }
-            steps {
-                echo 'Running SAST using Polaris'
-                synopsysIO(connectors: [
-                    [$class: polarisPipelineConfig,
-                    configName: polarisConfigName,
-                    projectName: polarisProjectName]]) {
-                    sh 'io --stage execution --state io_state.json'
-                }
-            }
-        }
+//         stage('SAST - Polaris') {
+//             when {
+//                 expression { isSASTEnabled }
+//             }
+//             steps {
+//                 echo 'Running SAST using Polaris'
+//                 synopsysIO(connectors: [
+//                     [$class: polarisPipelineConfig,
+//                     configName: polarisConfigName,
+//                     projectName: polarisProjectName]]) {
+//                     sh 'io --stage execution --state io_state.json'
+//                 }
+//             }
+//         }
 
         stage('SCA - BlackDuck') {
             when {
