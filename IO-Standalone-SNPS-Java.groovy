@@ -278,7 +278,10 @@ pipeline {
         // Run IO's Workflow Engine
         stage('Workflow') {
             steps {
-                synopsysIO(connectors: []) {
+                synopsysIO(connectors: [
+                // msteams(configName: msTeamsConfigName)
+                // slack(configName: slackConfigName)
+                ]) {
                             sh 'io --stage workflow --state io_state.json'
                 }
             }
