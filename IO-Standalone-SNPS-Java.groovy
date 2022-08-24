@@ -9,7 +9,7 @@ def ioServerURL = "http://23.99.131.170"
 def ioRunAPI = "/api/ioiq/api/orchestration/runs/"
 
 // SCM
-def scmBranch = 'devsecops'
+def scmBranch = '2022.7.0'
 def scmRepoName = 'vulnado'
 // GitHub
 def gitHubPOCId = 'github-poc'
