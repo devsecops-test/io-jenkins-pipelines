@@ -27,6 +27,7 @@ def coverityTrialCredential = ''
 def polarisPipelineConfig = 'PolarisPipelineConfig'
 def polarisConfigName = 'csprod-polaris'
 def polarisProjectName = 'sig-devsecops/vulnado'
+def polarisBranchName = 'origin/devsecops'
 
 // AST - Black Duck
 def blackDuckPOCId = 'BIZDevBD'
@@ -170,20 +171,21 @@ pipeline {
             }
         }
 
-//         stage('SAST - Polaris') {
-//             when {
-//                 expression { isSASTEnabled }
-//             }
-//             steps {
-//                 echo 'Running SAST using Polaris'
-//                 synopsysIO(connectors: [
-//                     [$class: polarisPipelineConfig,
-//                     configName: polarisConfigName,
-//                     projectName: polarisProjectName]]) {
-//                     sh 'io --stage execution --state io_state.json'
-//                 }
-//             }
-//         }
+        stage('SAST - Polaris') {
+            when {
+                expression { isSASTEnabled }
+            }
+            steps {
+                echo 'Running SAST using Polaris'
+                synopsysIO(connectors: [
+                    [$class: polarisPipelineConfig,
+                    configName: polarisConfigName,
+                    projectName: polarisProjectName,
+                    branchName: polarisBranchName]]) {
+                    sh 'io --stage execution --state io_state.json'
+                }
+            }
+        }
 
         stage('SCA - BlackDuck') {
             when {
