@@ -331,7 +331,7 @@ pipeline {
                     sh 'rm io_state.json'
                 }
                 if (fileExists('wf-output.json')) {
-                    sh 'rm io_state.json'
+                    sh 'rm wf-output.json'
                 }
             }
         }
