@@ -311,6 +311,8 @@ pipeline {
 
                         if (breakBuild) {
                             input message: 'Build-breaker criteria met.'
+                            // Or directly fail the build:
+                            // error("Build failed as breaker criteria met.")
                         }
                     } else {
                         print('No output from the Workflow Engine. No sign-off required.')
