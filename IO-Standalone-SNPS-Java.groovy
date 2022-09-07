@@ -284,7 +284,7 @@ pipeline {
                 // msteams(configName: msTeamsConfigName)
                 // slack(configName: slackConfigName)
                 ]) {
-                            sh 'io --stage workflow --state io_state.json'
+                    sh 'io --stage workflow --state io_state.json'
                 }
             }
         }
@@ -326,8 +326,11 @@ pipeline {
             // archiveArtifacts artifacts: '**/*-results*.json', allowEmptyArchive: 'true'
 
             script {
-                // Remove the state json file as it has sensitive information
+                // Remove the state file as they may have sensitive information
                 if (fileExists('io_state.json')) {
+                    sh 'rm io_state.json'
+                }
+                if (fileExists('wf-output.json')) {
                     sh 'rm io_state.json'
                 }
             }
