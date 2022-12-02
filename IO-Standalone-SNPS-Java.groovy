@@ -4,7 +4,7 @@ import groovy.json.JsonSlurper
 // IO Environment
 def ioPOCId = 'io-azure'
 def ioProjectName = 'devsecops-vulnado'
-def ioWorkflowEngineVersion = '2022.7.0'
+def ioWorkflowEngineVersion = '2022.7.2'
 def ioServerURL = "http://23.99.131.170"
 def ioRunAPI = "/api/ioiq/api/orchestration/runs/"
 
@@ -42,8 +42,8 @@ def jiraProjectKey = 'VUL'
 def jiraProjectName = 'VUL'
 
 // Code Dx Configuration
-def codeDxConfigName = 'SIG-CodeDx'
-def codeDxProjectId = '3'
+def codeDxConfigName = 'codedx-azure'
+def codeDxProjectId = '5'
 
 // Notification Configuration
 def msTeamsConfigName = 'io-bot'
@@ -102,12 +102,12 @@ pipeline {
                         configName: gitHubPOCId,
                         owner: gitHubOwner,
                         repositoryName: scmRepoName),
-                    jira(
-                        assignee: jiraAssignee,
-                        configName: jiraConfigName,
-                        issueQuery: jiraIssueQuery,
-                        projectKey: jiraProjectKey,
-                        projectName: jiraProjectName),
+//                     jira(
+//                         assignee: jiraAssignee,
+//                         configName: jiraConfigName,
+//                         issueQuery: jiraIssueQuery,
+//                         projectKey: jiraProjectKey,
+//                         projectName: jiraProjectName),
                     codeDx(
                         configName: codeDxConfigName,
                         projectId: codeDxProjectId)]) {
